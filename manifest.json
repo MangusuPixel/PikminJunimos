@@ -1,0 +1,10 @@
+{
+  "Name": "Pikmin Junimos",
+  "Author": "Mangupix",
+  "Version": "1.0.0",
+  "Description": "Replaces junimos with Pikmin.",
+  "UniqueID": "Mangupix.PikminJunimos",
+  "EntryDll": "PikminJunimos.dll",
+  "MinimumApiVersion": "4.0.0",
+  "UpdateKeys": [ "Nexus:27369" ]
+}
