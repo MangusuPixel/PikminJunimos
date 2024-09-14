@@ -2,6 +2,10 @@
 {
     public sealed class ModConfig
     {
-        public static int SpriteScale { get; set; } = 2;
+        public int SpriteScale { get; set; } = 2;
+
+        public bool IsOnionTextureEnabled { get; set; } = true;
+
+        public bool IsOnionLightEnabled { get; set; } = true;
     }
 }

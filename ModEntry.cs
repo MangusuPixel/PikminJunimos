@@ -30,6 +30,8 @@ namespace PikminJunimos
 
             helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 
+            helper.Events.Content.AssetRequested += OnAssetRequested;
+
             var harmony = new Harmony(ModManifest.UniqueID);
             GamePatches.Apply(harmony);
         }
@@ -42,6 +44,14 @@ namespace PikminJunimos
         {
             LoadCustomTextures();
             LoadConfigOptions();
+        }
+
+        private void OnAssetRequested(object? sender, AssetRequestedEventArgs e)
+        {
+            if (Config.IsOnionTextureEnabled && e.Name.IsEquivalentTo("Buildings/Junimo Hut"))
+            {
+                e.LoadFromModFile<Texture2D>("assets/junimo_hut.png", AssetLoadPriority.High);
+            }
         }
 
         private void LoadCustomTextures()
@@ -74,18 +84,37 @@ namespace PikminJunimos
             configMenu.Register(
                 mod: ModManifest,
                 reset: () => Config = new ModConfig(),
-                save: () => Helper.WriteConfig(Config)
+                save: () => {
+                    Helper.WriteConfig(Config);
+                    Helper.GameContent.InvalidateCache("Buildings/Junimo Hut");
+                }
             );
 
             configMenu.AddNumberOption(
                 mod: ModManifest,
                 name: () => "Sprite scale",
                 tooltip: () => "Scale multiplier for sprites. Normally 4x but set to 2x by default to fit the smaller junimo sizes.",
-                getValue: () => ModConfig.SpriteScale,
-                setValue: (value) => ModConfig.SpriteScale = value,
+                getValue: () => Config.SpriteScale,
+                setValue: (value) => Config.SpriteScale = value,
                 min: 1,
                 max: 4,
                 interval: 1
+            );
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => "Pikmin's onion",
+                tooltip: () => "Replaces the junimo hut with Pikmin's onion.",
+                getValue: () => Config.IsOnionTextureEnabled,
+                setValue: (value) => Config.IsOnionTextureEnabled = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => "Onion's light",
+                tooltip: () => "Adds a beam of light during nighttime.",
+                getValue: () => Config.IsOnionLightEnabled,
+                setValue: (value) => Config.IsOnionLightEnabled = value
             );
         }
     }

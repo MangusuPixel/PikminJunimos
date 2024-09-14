@@ -12,6 +12,12 @@ namespace PikminJunimos
 {
     internal static class GamePatches
     {
+        public static ModConfig Config = ModEntry.Config;
+        public static IMonitor Monitor = ModEntry.Instance.Monitor;
+        public static List<Texture2D> PikminTextures = ModEntry.Instance.PikminTextures;
+
+        private static Rectangle _lightInteriorRect = new(240, 0, 48, 40);
+
         internal static bool Apply(Harmony harmony)
         {
             try
@@ -40,10 +46,15 @@ namespace PikminJunimos
                     original: AccessTools.Method(typeof(JunimoHarvester), nameof(JunimoHarvester.draw), new Type[] { typeof(SpriteBatch), typeof(float) }),
                     prefix: new HarmonyMethod(typeof(GamePatches), nameof(JunimoHarvesterDrawPrefix))
                 );
+
+                harmony.Patch(
+                    original: AccessTools.Method(typeof(JunimoHut), nameof(JunimoHut.draw), new Type[] { typeof(SpriteBatch) }),
+                    postfix: new HarmonyMethod(typeof(GamePatches), nameof(JunimoHutDrawPostfix))
+                );
             }
             catch (Exception ex)
             {
-                ModEntry.Instance.Monitor.Log($"Failed patching game:\n{ex}", LogLevel.Error);
+                Monitor.Log($"Failed patching game:\n{ex}", LogLevel.Error);
                 return false;
             }
             return true;
@@ -53,12 +64,12 @@ namespace PikminJunimos
         {
             try
             {
-                __instance.Age = Game1.random.Next(1, 4);
-                __instance.Birthday_Day = Game1.random.Next(ModEntry.Instance.PikminTextures.Count);
+                __instance.Age = Game1.random.Next(1, 4); // Bud stage
+                __instance.Birthday_Day = Game1.random.Next(PikminTextures.Count); // Pikmin variation
             }
             catch (Exception ex)
             {
-                ModEntry.Instance.Monitor.Log($"Error in patch {nameof(JunimoPostfix)}:\n{ex}", LogLevel.Error);
+                Monitor.Log($"Error in patch {nameof(JunimoPostfix)}:\n{ex}", LogLevel.Error);
             }
         }
 
@@ -67,12 +78,12 @@ namespace PikminJunimos
             try
             {
                 __instance.Age = Game1.random.Next(1, 4);
-                __instance.Birthday_Day = Game1.random.Next(ModEntry.Instance.PikminTextures.Count);
+                __instance.Birthday_Day = Game1.random.Next(PikminTextures.Count);
                 __instance.HideShadow = true;
             }
             catch (Exception ex)
             {
-                ModEntry.Instance.Monitor.Log($"Error in patch {nameof(JunimoHarvesterPostfix)}:\n{ex}", LogLevel.Error);
+                Monitor.Log($"Error in patch {nameof(JunimoHarvesterPostfix)}:\n{ex}", LogLevel.Error);
             }
         }
 
@@ -104,7 +115,7 @@ namespace PikminJunimos
             }
             catch (Exception ex)
             {
-                ModEntry.Instance.Monitor.Log($"Error in patch {nameof(JunimoDrawPrefix)}:\n{ex}", LogLevel.Error);
+                Monitor.Log($"Error in patch {nameof(JunimoDrawPrefix)}:\n{ex}", LogLevel.Error);
                 return true;
             }
         }
@@ -118,7 +129,7 @@ namespace PikminJunimos
             }
             catch (Exception ex)
             {
-                ModEntry.Instance.Monitor.Log($"Error in patch {nameof(JunimoDrawShadowPrefix)}:\n{ex}", LogLevel.Error);
+                Monitor.Log($"Error in patch {nameof(JunimoDrawShadowPrefix)}:\n{ex}", LogLevel.Error);
                 return true;
             }
         }
@@ -139,16 +150,16 @@ namespace PikminJunimos
             }
             catch (Exception ex)
             {
-                ModEntry.Instance.Monitor.Log($"Error in patch {nameof(JunimoHarvesterDrawPrefix)}:\n{ex}", LogLevel.Error);
+                Monitor.Log($"Error in patch {nameof(JunimoHarvesterDrawPrefix)}:\n{ex}", LogLevel.Error);
                 return true;
             }
         }
 
         private static void DrawJunimo(SpriteBatch b, NPC npc, float alpha)
         {
-            var texture = ModEntry.Instance.PikminTextures[npc.Birthday_Day];
+            var texture = PikminTextures[npc.Birthday_Day];
             var shakeOffset = npc.shakeTimer > 0 ? new Vector2(Game1.random.Next(-1, 2), Game1.random.Next(-1, 2)) : Vector2.Zero;
-            var pos = npc.getLocalPosition(Game1.viewport) + new Vector2(32, 44 + npc.yJumpOffset - 31 * ModConfig.SpriteScale) + shakeOffset;
+            var pos = npc.getLocalPosition(Game1.viewport) + new Vector2(32, 44 + npc.yJumpOffset - 31 * Config.SpriteScale) + shakeOffset;
 
             var sourceRect = npc.Sprite.SourceRect.Clone();
             sourceRect.Height = 32;
@@ -159,11 +170,11 @@ namespace PikminJunimos
             var effects = npc.flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
             var layerDepth = Math.Max(0, npc.drawOnTop ? 0.991f : (npc.StandingPixel.Y + 2) / 10000f);
 
-            b.Draw(texture, pos, sourceRect, color, npc.rotation, origin, ModConfig.SpriteScale, effects, layerDepth);
+            b.Draw(texture, pos, sourceRect, color, npc.rotation, origin, Config.SpriteScale, effects, layerDepth);
 
             sourceRect.X += npc.Age * npc.Sprite.Texture.Width;
 
-            b.Draw(texture, pos, sourceRect, color, npc.rotation, origin, ModConfig.SpriteScale, effects, layerDepth);
+            b.Draw(texture, pos, sourceRect, color, npc.rotation, origin, Config.SpriteScale, effects, layerDepth);
         }
 
         private static void DrawShadow(SpriteBatch b, NPC npc, float alpha)
@@ -174,10 +185,22 @@ namespace PikminJunimos
             var color = Color.White * alpha;
             var bounds = Game1.shadowTexture.Bounds;
             var origin = new Vector2(bounds.Center.X, bounds.Center.Y);
-            var scale = (4 + npc.yJumpOffset / 40f) * ModConfig.SpriteScale / 4f;
+            var scale = (4 + npc.yJumpOffset / 40f) * Config.SpriteScale / 4f;
             var layerDepth = Math.Max(0, npc.StandingPixel.Y / 10000f - 1E-06f);
 
             b.Draw(shadowTexture, pos, sourceRect, color, 0, origin, scale, SpriteEffects.None, layerDepth);
+        }
+
+        private static void JunimoHutDrawPostfix(JunimoHut __instance, SpriteBatch b, float ___alpha)
+        {
+            if (Config.IsOnionTextureEnabled && Config.IsOnionLightEnabled && Game1.timeOfDay >= 2000 && Game1.timeOfDay < 2400 && __instance.wasLit.Value && !__instance.GetParentLocation().IsWinterHere())
+            {
+                var texture = __instance.texture.Value;
+                var pos = Game1.GlobalToLocal(Game1.viewport, new Vector2(__instance.tileX.Value * 64, __instance.tileY.Value * 64 + __instance.tilesHigh.Value * 64 - 128));
+                var layerDepth = ((__instance.tileY.Value + __instance.tilesHigh.Value - 1) * 64 + 1) / 10000f - 1E-06f;
+
+                b.Draw(texture, pos, _lightInteriorRect, __instance.color * ___alpha * 0.6f, 0, Vector2.Zero, 4, SpriteEffects.None, layerDepth);
+            }
         }
     }
 }
